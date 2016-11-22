@@ -38,9 +38,14 @@ package object engine {
   /**
     * Type constructor where all Seqexec side effect are managed.
     */
-  type Engine[A] = EngineStateT[Task, A]
+  type Engine[S, A] = EngineStateT[Task, S, A]
+
   // Helper alias to facilitate lifting.
-  type EngineStateT[M[_], A] = StateT[M, Queue.State, A]
+  type EngineStateT[M[_], S, A] = StateT[M, S, A]
+
+  type EngineQueue[A] = Engine[Queue.State, A]
+
+  type EngineQueueT[M[_], A] = EngineStateT[M, Queue.State, A]
 
   /**
     * Changes the `Status` and returns the new `Queue.State`.
@@ -48,14 +53,15 @@ package object engine {
     * It also takes care of initiating the execution when transitioning to
     * `Running` `Status`.
     */
-  def switch(q: EventQueue)(st: Status): Engine[Unit] =
+  def switch(q: EventQueue)(st: Status): EngineQueue[Unit] =
     // TODO: Make Status an Equal instance
+    // XXX: Make it work for anything with status lens
     modify(Queue.State.status.set(_, st)) *> whenM(st == Status.Running)(next(q))
 
   /**
     * Reloads the (for now only) sequence
     */
-  def load(seq: Sequence[Action]): Engine[Unit] = status.flatMap {
+  def load(seq: Sequence[Action]): EngineQueue[Unit] = status.flatMap {
     case Status.Running => unit
     case _ => put(Queue.State.init(engine.Queue(List(seq))))
   }
@@ -66,7 +72,7 @@ package object engine {
     *
     * If there are no more pending `Execution`s, it emits the `Finished` event.
     */
-  def next(q: EventQueue): Engine[Unit] =
+  def next(q: EventQueue): EngineQueue[Unit] =
     gets(_.next).flatMap {
       // Empty state
       case None     => send(q)(finished)
@@ -81,7 +87,7 @@ package object engine {
     * `Execution` in parallel. When all are done it emits the `Executed` event.
     * It also updates the `State` as needed.
     */
-  private def execute(q: EventQueue): Engine[Unit] = {
+  private def execute(q: EventQueue): EngineQueue[Unit] = {
 
     // Send the expected event when the `Action` is executed
     def act(t: (Action, Int)): Task[Unit] = t match {
@@ -99,7 +105,7 @@ package object engine {
         gets(_.current.actions).flatMap(
           actions => Nondeterminism[Task].gatherUnordered(
             actions.zipWithIndex.map(act)
-          ).liftM[EngineStateT]
+          ).liftM[EngineQueueT]
         )
       ) *> send(q)(executed)
     }
@@ -111,42 +117,42 @@ package object engine {
     *
     * When the index doesn't exit it does nothing.
     */
-  def complete[R](i: Int, r: R): Engine[Unit] = modify(_.mark(i)(Result.OK(r)))
+  def complete[R](i: Int, r: R): EngineQueue[Unit] = modify(_.mark(i)(Result.OK(r)))
 
   /**
     * For now it only changes the `Status` to `Paused` and returns the new
     * `State`. In the future this function should handle the failed
     * action.
     */
-  def fail[E](q: EventQueue)(i: Int, e: E): Engine[Unit] =
+  def fail[E](q: EventQueue)(i: Int, e: E): EngineQueue[Unit] =
     modify(_.mark(i)(Result.Error(e))) *> switch(q)(Status.Waiting)
 
   /**
     * Ask for the current Engine `Status`.
     */
-  val status: Engine[Status] = gets(_.status)
+  val status: EngineQueue[Status] = gets(_.status)
 
   /**
     * Log something and return the `State`.
     */
   // XXX: Proper Java logging
-  def log(msg: String): Engine[Unit] = pure(println(msg))
+  def log(msg: String): EngineQueue[Unit] = pure(println(msg))
 
   /** Terminates the `Engine` returning the final `State`.
     */
-  def close(queue: EventQueue): Engine[Unit] = queue.close.liftM[EngineStateT]
+  def close(queue: EventQueue): EngineQueue[Unit] = queue.close.liftM[EngineQueueT]
 
   /**
     * Enqueue `Event` in the Engine.
     */
-  private def send(q: EventQueue)(ev: Event): Engine[Unit] = q.enqueueOne(ev).liftM[EngineStateT]
+  private def send(q: EventQueue)(ev: Event): Engine[Queue.State, Unit] = q.enqueueOne(ev).liftM[EngineQueueT]
 
   /**
     * Main logical thread to handle events and produce output.
     */
-  private def run(q: EventQueue)(ev: Event): Engine[Queue.State] = {
+  private def run(q: EventQueue)(ev: Event): Engine[Queue.State, Queue.State] = {
 
-    def handleUserEvent(ue: UserEvent): Engine[Unit] = ue match {
+    def handleUserEvent(ue: UserEvent): Engine[Queue.State, Unit] = ue match {
       case Start              =>
         log("Output: Started") *> switch(q)(Status.Running)
       case Pause              =>
@@ -158,7 +164,7 @@ package object engine {
         log("Bye") *> close(q)
     }
 
-    def handleSystemEvent(se: SystemEvent): Engine[Unit] = se match {
+    def handleSystemEvent(se: SystemEvent): Engine[Queue.State, Unit] = se match {
       case (Completed(i, r)) =>
         log("Output: Action completed") *> complete(i, r)
       case (Failed(i, e))    =>
@@ -190,10 +196,10 @@ package object engine {
     go(fs, s)
   }
 
-  def runE(q: EventQueue)(ev: Event): Engine[(Event, Queue.State)] =
+  def runE(q: EventQueue)(ev: Event): EngineQueue[(Event, Queue.State)] =
     run(q)(ev).map((ev, _))
 
-  def processE(q: EventQueue): Process[Engine, (Event, Queue.State)] =
+  def processE(q: EventQueue): Process[EngineQueue, (Event, Queue.State)] =
     receive(q).evalMap(runE(q))
 
   def process(q: EventQueue)(qs: Queue.State): Process[Task, (Event, Queue.State)] = {
@@ -205,43 +211,43 @@ package object engine {
   /**
     * This creates an `Event` Process with `Engine` as effect.
     */
-  def receive(queue: EventQueue): Process[Engine, Event] = hoistEngine(queue.dequeue)
+  def receive(queue: EventQueue): Process[EngineQueue, Event] = hoistEngine(queue.dequeue)
 
-  def pure[A](a: A): Engine[A] = Applicative[Engine].pure(a)
+  def pure[A](a: A): EngineQueue[A] = Applicative[EngineQueue].pure(a)
 
-  private val unit: Engine[Unit] = pure(Unit)
+  private val unit: EngineQueue[Unit] = pure(Unit)
 
-  val get: Engine[Queue.State] =
-    MonadState[Engine, Queue.State].get
+  val get: EngineQueue[Queue.State] =
+    MonadState[EngineQueue, Queue.State].get
 
-  private def gets[A](f: (Queue.State) => A): Engine[A] =
-    MonadState[Engine, Queue.State].gets(f)
+  private def gets[A](f: (Queue.State) => A): Engine[Queue.State, A] =
+    MonadState[EngineQueue, Queue.State].gets(f)
 
   private def modify(f: (Queue.State) => Queue.State) =
-    MonadState[Engine, Queue.State].modify(f)
+    MonadState[EngineQueue, Queue.State].modify(f)
 
-  private def put(qs: Queue.State): Engine[Unit] =
-    MonadState[Engine, Queue.State].put(qs)
+  private def put(qs: Queue.State): Engine[Queue.State, Unit] =
+    MonadState[EngineQueue, Queue.State].put(qs)
 
   // For instrospection
-  val printQueueState: Engine[Unit] = gets((qs: Queue.State) => Task.now(println(qs)).liftM[EngineStateT])
+  val printQueueState: Engine[Queue.State, Unit] = gets((qs: Queue.State) => Task.now(println(qs)).liftM[EngineQueueT])
 
   // The `Catchable` instance of `Engine`` needs to be manually written.
   // Without it's not possible to use `Engine` as a scalaz-stream process effects.
-  implicit val engineInstance: Catchable[Engine] =
-    new Catchable[Engine] {
-      def attempt[A](a: Engine[A]): Engine[Throwable \/ A] = a.flatMap(
-        x => Catchable[Task].attempt(Applicative[Task].pure(x)).liftM[EngineStateT]
+  implicit val engineInstance: Catchable[EngineQueue] =
+    new Catchable[EngineQueue] {
+      def attempt[A](a: EngineQueue[A]): EngineQueue[Throwable \/ A] = a.flatMap(
+        x => Catchable[Task].attempt(Applicative[Task].pure(x)).liftM[EngineQueueT]
       )
-      def fail[A](err: Throwable) = Catchable[Task].fail(err).liftM[EngineStateT]
+      def fail[A](err: Throwable) = Catchable[Task].fail(err).liftM[EngineQueueT]
     }
 
   /**
     * Lifts from `Task` to `Engine` as the effect of a `Process`.
     */
-  def hoistEngine[A](p: Process[Task, A]): Process[Engine, A] = {
-    val toEngine = new (Task ~> Engine) {
-      def apply[B](t: Task[B]): Engine[B] = t.liftM[EngineStateT]
+  def hoistEngine[A](p: Process[Task, A]): Process[EngineQueue, A] = {
+    val toEngine = new (Task ~> EngineQueue) {
+      def apply[B](t: Task[B]): EngineQueue[B] = t.liftM[EngineQueueT]
     }
     p.translate(toEngine)
   }
@@ -249,7 +255,7 @@ package object engine {
   /**
     * Lifts from `Task` to `Engine` as the effect of a `Sink`.
     */
-  def hoistEngineSink[O](s: Sink[Task, O]): Sink[Engine, O] =
-    hoistEngine(s).map(_.map(_.liftM[EngineStateT]))
+  def hoistEngineSink[O](s: Sink[Task, O]): Sink[EngineQueue, O] =
+    hoistEngine(s).map(_.map(_.liftM[EngineQueueT]))
 
 }
