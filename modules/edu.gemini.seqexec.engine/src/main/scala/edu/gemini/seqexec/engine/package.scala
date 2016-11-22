@@ -56,7 +56,7 @@ package object engine {
   def switch(q: EventQueue)(st: Status): EngineQueue[Unit] =
     // TODO: Make Status an Equal instance
     // XXX: Make it work for anything with status lens
-    modify(Queue.State.status.set(_, st)) *> whenM(st == Status.Running)(next(q))
+    modify[Queue.State](Queue.State.status.set(_, st)) *> whenM(st == Status.Running)(next(q))
 
   /**
     * Reloads the (for now only) sequence
@@ -73,11 +73,11 @@ package object engine {
     * If there are no more pending `Execution`s, it emits the `Finished` event.
     */
   def next(q: EventQueue): EngineQueue[Unit] =
-    gets(_.next).flatMap {
+    gets[Queue.State, Option[Queue.State]](_.next).flatMap {
       // Empty state
       case None     => send(q)(finished)
       // Final State
-      case Some(qs: Queue.State.Final) => put(qs) *> send(q)(finished)
+      case Some(qs: Queue.State.Final) => put[Queue.State](qs) *> send(q)(finished)
       // Execution completed, execute next actions
       case Some(qs) => put(qs) *> execute(q)
     }
@@ -102,7 +102,7 @@ package object engine {
       case Status.Waiting   => unit
       case Status.Completed => unit
       case Status.Running   => (
-        gets(_.current.actions).flatMap(
+        gets[Queue.State, Actions](_.current.actions).flatMap(
           actions => Nondeterminism[Task].gatherUnordered(
             actions.zipWithIndex.map(act)
           ).liftM[EngineQueueT]
@@ -125,7 +125,7 @@ package object engine {
     * action.
     */
   def fail[E](q: EventQueue)(i: Int, e: E): EngineQueue[Unit] =
-    modify(_.mark(i)(Result.Error(e))) *> switch(q)(Status.Waiting)
+    modify[Queue.State](_.mark(i)(Result.Error(e))) *> switch(q)(Status.Waiting)
 
   /**
     * Ask for the current Engine `Status`.
@@ -211,26 +211,29 @@ package object engine {
   /**
     * This creates an `Event` Process with `Engine` as effect.
     */
-  def receive(queue: EventQueue): Process[EngineQueue, Event] = hoistEngine(queue.dequeue)
+  def receive(queue: EventQueue): Process[EngineQueue, Event] =
+    hoistEngine(queue.dequeue)
 
-  def pure[A](a: A): EngineQueue[A] = Applicative[EngineQueue].pure(a)
+  def pure[S, A](a: A): Engine[S, A] =
+    Applicative[({type L[A] = Engine[S, A]})#L].pure(a)
 
-  private val unit: EngineQueue[Unit] = pure(Unit)
+  private def unit[S]: Engine[S, Unit] = pure(Unit)
 
-  val get: EngineQueue[Queue.State] =
-    MonadState[EngineQueue, Queue.State].get
+  def get[S]: Engine[S, S] =
+    MonadState[({type L[A] = Engine[S, A]})#L, S].get
 
-  private def gets[A](f: (Queue.State) => A): Engine[Queue.State, A] =
-    MonadState[EngineQueue, Queue.State].gets(f)
+  private def gets[S, A](f: (S) => A): Engine[S, A] =
+    MonadState[({type L[A] = Engine[S, A]})#L, S].gets(f)
 
-  private def modify(f: (Queue.State) => Queue.State) =
-    MonadState[EngineQueue, Queue.State].modify(f)
+  private def modify[S](f: (S) => S): Engine[S, Unit] =
+    MonadState[({type L[A] = Engine[S, A]})#L, S].modify(f)
 
-  private def put(qs: Queue.State): Engine[Queue.State, Unit] =
-    MonadState[EngineQueue, Queue.State].put(qs)
+  private def put[S](s: S): Engine[S, Unit] =
+    MonadState[({type L[A] = Engine[S, A]})#L, S].put(s)
 
   // For instrospection
-  val printQueueState: Engine[Queue.State, Unit] = gets((qs: Queue.State) => Task.now(println(qs)).liftM[EngineQueueT])
+  val printQueueState: Engine[Queue.State, Unit] =
+    gets((qs: Queue.State) => Task.now(println(qs)).liftM[EngineQueueT])
 
   // The `Catchable` instance of `Engine`` needs to be manually written.
   // Without it's not possible to use `Engine` as a scalaz-stream process effects.
