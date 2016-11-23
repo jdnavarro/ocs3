@@ -53,7 +53,7 @@ package object engine {
     * It also takes care of initiating the execution when transitioning to
     * `Running` `Status`.
     */
-  def switch(q: EventQueue)(st: Status): EngineQueue[Unit] =
+  def switch(q: EventQueue)(st: Status): Engine[Queue.State, Unit] =
     // TODO: Make Status an Equal instance
     // XXX: Make it work for anything with status lens
     modify[Queue.State](Queue.State.status.set(_, st)) *> whenM(st == Status.Running)(next(q))
@@ -61,7 +61,7 @@ package object engine {
   /**
     * Reloads the (for now only) sequence
     */
-  def load(seq: Sequence[Action]): EngineQueue[Unit] = status.flatMap {
+  def load(seq: Sequence[Action]): Engine[Queue.State, Unit] = status.flatMap {
     case Status.Running => unit
     case _ => put(Queue.State.init(engine.Queue(List(seq))))
   }
@@ -72,6 +72,7 @@ package object engine {
     *
     * If there are no more pending `Execution`s, it emits the `Finished` event.
     */
+  // XXX: Can't use Engine[Queue.State, Unit], compiler crashes????
   def next(q: EventQueue): EngineQueue[Unit] =
     gets[Queue.State, Option[Queue.State]](_.next).flatMap {
       // Empty state
@@ -87,7 +88,7 @@ package object engine {
     * `Execution` in parallel. When all are done it emits the `Executed` event.
     * It also updates the `State` as needed.
     */
-  private def execute(q: EventQueue): EngineQueue[Unit] = {
+  private def execute(q: EventQueue): Engine[Queue.State, Unit] = {
 
     // Send the expected event when the `Action` is executed
     def act(t: (Action, Int)): Task[Unit] = t match {
@@ -117,30 +118,30 @@ package object engine {
     *
     * When the index doesn't exit it does nothing.
     */
-  def complete[R](i: Int, r: R): EngineQueue[Unit] = modify(_.mark(i)(Result.OK(r)))
+  def complete[R](i: Int, r: R): Engine[Queue.State, Unit] = modify(_.mark(i)(Result.OK(r)))
 
   /**
     * For now it only changes the `Status` to `Paused` and returns the new
     * `State`. In the future this function should handle the failed
     * action.
     */
-  def fail[E](q: EventQueue)(i: Int, e: E): EngineQueue[Unit] =
+  def fail[E](q: EventQueue)(i: Int, e: E): Engine[Queue.State, Unit] =
     modify[Queue.State](_.mark(i)(Result.Error(e))) *> switch(q)(Status.Waiting)
 
   /**
     * Ask for the current Engine `Status`.
     */
-  val status: EngineQueue[Status] = gets(_.status)
+  val status: Engine[Queue.State, Status] = gets(_.status)
 
   /**
     * Log something and return the `State`.
     */
   // XXX: Proper Java logging
-  def log(msg: String): EngineQueue[Unit] = pure(println(msg))
+  def log(msg: String): Engine[Queue.State, Unit] = pure(println(msg))
 
   /** Terminates the `Engine` returning the final `State`.
     */
-  def close(queue: EventQueue): EngineQueue[Unit] = queue.close.liftM[EngineQueueT]
+  def close(queue: EventQueue): Engine[Queue.State, Unit] = queue.close.liftM[EngineQueueT]
 
   /**
     * Enqueue `Event` in the Engine.
@@ -239,7 +240,7 @@ package object engine {
   // Without it's not possible to use `Engine` as a scalaz-stream process effects.
   implicit val engineInstance: Catchable[EngineQueue] =
     new Catchable[EngineQueue] {
-      def attempt[A](a: EngineQueue[A]): EngineQueue[Throwable \/ A] = a.flatMap(
+      def attempt[A](a: Engine[Queue.State, A]): Engine[Queue.State, Throwable \/ A] = a.flatMap(
         x => Catchable[Task].attempt(Applicative[Task].pure(x)).liftM[EngineQueueT]
       )
       def fail[A](err: Throwable) = Catchable[Task].fail(err).liftM[EngineQueueT]
