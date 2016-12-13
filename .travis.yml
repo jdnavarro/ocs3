@@ -1,26 +1,34 @@
 language: scala
 scala:
-  - 2.11.8
+- 2.11.8
 jdk:
-  - oraclejdk8
-# These directories are cached to S3 at the end of the build
+- oraclejdk8
 cache:
   directories:
-    - $HOME/.ivy2/cache
-    - $HOME/.sbt/boot/
+  - "$HOME/.ivy2/cache"
+  - "$HOME/.sbt/boot/"
 before_cache:
-  # Tricks to avoid unnecessary cache updates
-  - find $HOME/.ivy2 -name "ivydata-*.properties" -delete
-  - find $HOME/.sbt -name "*.lock" -delete
+- find $HOME/.ivy2 -name "ivydata-*.properties" -delete
+- find $HOME/.sbt -name "*.lock" -delete
 install:
-  - . $HOME/.nvm/nvm.sh
-  - nvm install stable
-  - nvm use stable
-  - npm install jsdom
+- ". $HOME/.nvm/nvm.sh"
+- nvm install stable
+- nvm use stable
+- npm install jsdom
 before_script:
-  - sudo apt-get install -y rpm
+- sudo apt-get install -y rpm
+- sbt ";project edu_gemini_seqexec_web_server; run"
+- sleep 3
 script:
-  - sbt ++$TRAVIS_SCALA_VERSION test:compile test
-  - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then sbt ++$TRAVIS_SCALA_VERSION seqexec_server/universal:packageZipTarball; fi'
-  - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then sbt ++$TRAVIS_SCALA_VERSION seqexec_server_test_l64/universal:packageZipTarball; fi'
-  - 'if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then sbt ++$TRAVIS_SCALA_VERSION seqexec_server_test_l64/rpm:packageBin; fi'
+- sbt ++$TRAVIS_SCALA_VERSION test:compile test
+- if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then sbt ++$TRAVIS_SCALA_VERSION seqexec_server/universal:packageZipTarball;
+  fi
+- if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then sbt ++$TRAVIS_SCALA_VERSION seqexec_server_test_l64/universal:packageZipTarball;
+  fi
+- if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then sbt ++$TRAVIS_SCALA_VERSION seqexec_server_test_l64/rpm:packageBin;
+  fi
+addons:
+  sauce_connect:
+    username: jdnavarro
+  jwt:
+    secure: sPU6KurKxdwADFzA3XlveMhD0eQwbFZPVsGF6b+s6DJ4UrmooJCB9B/Z3wRrJrkZjbkWwvoBA/LH4Qxzo82JB0dKTdm/tqfQIZYHdb9LMR3rGtXyogYkR0W3fdRJsoyVQO3OkZ6G/WkxirciVgxSKgwMZWdk8EUCNj6eGGtcFxV7oXmtWUyfrvKjQiZdsctdp1h2qeJkXnZ4oVZ0igDdZHzqAKJbqP1NW2vv+HghjLe+GwGAOLC9D1pfkG2a4R9Rbm1NfoGfYitJqv1aTTEockqHPRHtkROKGaFWYsjcnDKyI7eREsHHcspV3RFClrX6DVYXHkWnoaz9+JwAw8jfBAjT+NDyMtMcRil7/rdqqjrGO5BH0GllFcPcI7kR1zhxJUKJVWTe4R28jGoYdPscz+EXiI2hzYnzEd8yE+f0mroITjGwKKXEi0yLzIvihJY/xSVJEmsck2Y7n0p8t8HFXWHoaNtpugyBgpjMA6G52n20E/LgT3Mpxgsz36Ef2uy+oiG7Vg/5gVLqlwpgm4A/uBtD/fUV4HczATHVZn9auFF35BLTXbmOsmG2VAnzUFPBzh2AnHLZE1a4VjjgvQEYt5r9tcFnx5QMjno1Kwt5gYsjWJNh1F4Io0j3TdyiPbvI3bOgxynExibvVEobys7q/m7N0V7sCQZey4ZIKVtohyY=

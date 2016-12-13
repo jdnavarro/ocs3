@@ -53,8 +53,10 @@ object Settings {
     val knobs        = "3.12.27a"
 
     // test libraries
-    val scalaTest    = "3.0.1"
-    val scalaCheck   = "1.13.4"
+    val scalaTest           = "3.0.1"
+    val scalaCheck          = "1.13.4"
+    val scalaCheckShapeless = "1.1.3"
+    val scalaWebTest        = "1.0.3"
 
     // Pure JS libraries
     val reactJS        = "15.3.2"
@@ -72,9 +74,12 @@ object Settings {
 
     // Test Libraries
     val TestLibs = Def.setting(Seq(
-      "org.scalatest"              %%% "scalatest"                 % LibraryVersions.scalaTest  % "test",
-      "org.scalacheck"             %%% "scalacheck"                % LibraryVersions.scalaCheck % "test",
-      "com.github.alexarchambault" %%% "scalacheck-shapeless_1.13" % "1.1.3"                    % "test"
+      "org.scalatest"              %%% "scalatest"                 % LibraryVersions.scalaTest           % "test",
+      "org.scalacheck"             %%% "scalacheck"                % LibraryVersions.scalaCheck          % "test",
+      "com.github.alexarchambault" %%% "scalacheck-shapeless_1.13" % LibraryVersions.scalaCheckShapeless % "test",
+      // "org.scalawebtest"           %%  "scalawebtest-core"   % LibraryVersions.scalaWebTest        % "test",
+      "org.seleniumhq.selenium"    % "selenium-java" % "2.53.1" % "test",
+      "org.seleniumhq.selenium"    % "selenium-htmlunit-driver" % "2.52.0" % "test"
     ))
 
     val Argonaut    = "io.argonaut"        %% "argonaut"                          % LibraryVersions.argonaut
