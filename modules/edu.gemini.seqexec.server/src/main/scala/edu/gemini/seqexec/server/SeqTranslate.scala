@@ -2,7 +2,9 @@ package edu.gemini.seqexec.server
 
 import edu.gemini.model.p1.immutable.Site
 import edu.gemini.seqexec.engine.{Action, Result, Sequence, Step}
-import edu.gemini.seqexec.model.Model.SequenceMetadata
+import edu.gemini.seqexec.model.Model.{SequenceMetadata, Operator, Observer}
+import edu.gemini.model.p1.immutable.Site
+import edu.gemini.seqexec.server.SeqexecFailure.UnrecognizedInstrument
 import edu.gemini.seqexec.server.ConfigUtilOps._
 import edu.gemini.seqexec.server.SeqexecFailure.UnrecognizedInstrument
 import edu.gemini.spModel.config2.{Config, ConfigSequence, ItemKey}
@@ -63,7 +65,11 @@ class SeqTranslate(site: Site) {
     // This is too weak. We may want to use the extractors used in ITC
     config.getItemValue(new ItemKey(INSTRUMENT_KEY, INSTRUMENT_NAME_PROP)).toString
 
-  def sequence(systems: Systems, settings: Settings)(obsId: String, sequenceConfig: ConfigSequence): SeqexecFailure \/ Sequence[Action] = {
+  def sequence(systems: Systems, settings: Settings)(
+    obsId: String,
+    operator: Operator,
+    observer: Observer,
+    sequenceConfig: ConfigSequence): SeqexecFailure \/ Sequence[Action] = {
     val configs = sequenceConfig.getAllSteps.toList
 
     val steps = configs.zipWithIndex.traverseU {
@@ -72,7 +78,7 @@ class SeqTranslate(site: Site) {
 
     val instName = configs.headOption.map(extractInstrumentName).getOrElse("Unknown instrument")
 
-    steps.map(Sequence[Action](obsId, SequenceMetadata(instName, "", ""), _))
+    steps.map(Sequence[Action](obsId, SequenceMetadata(instName, operator, observer), _))
   }
 
 }

@@ -200,7 +200,7 @@ package object engine {
       case Start(id)               => log("Output: Started") *> rollback(q)(id) *>
         switch(q)(id)(SequenceState.Running) *> send(q)(Event.executing(id))
       case Pause(id)               => log("Output: Paused") *> switch(q)(id)(SequenceState.Stopping)
-      case Load(id, seq) => log("Output: Sequence loaded") *> load(id, seq)
+      case Load(id, seq)   => log("Output: Sequence loaded") *> load(id, seq)
       case Breakpoint(id, step, v) => log("Output: breakpoint changed") *>
         modifyS(id)(_.setBreakpoint(step, v))
       case Poll                    => log("Output: Polling current state")

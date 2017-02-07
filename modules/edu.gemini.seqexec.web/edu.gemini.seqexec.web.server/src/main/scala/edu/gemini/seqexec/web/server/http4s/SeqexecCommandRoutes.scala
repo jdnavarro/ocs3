@@ -31,7 +31,7 @@ class SeqexecCommandRoutes(auth: AuthenticationService, inputQueue: engine.Event
     case req @ GET  -> Root  / obsId / "count" =>
       Ok(toCommandResult("count", commands.showCount(obsId)))
 
-    case POST -> Root / obsId / "start" =>
+    case req @ POST -> Root / obsId / "start" =>
       for {
         obs <-
             \/.fromTryCatchNonFatal(new SPObservationID(obsId))

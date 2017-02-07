@@ -66,12 +66,21 @@ class SeqexecEngine(settings: SeqexecEngine.Settings) {
         )
     }
 
-  def load(q: engine.EventQueue, seqId: SPObservationID): Task[SeqexecFailure \/ Unit] = {
-    val t = EitherT( for {
+  def load(q: engine.EventQueue,
+           operator: Operator,
+           observer: Observer,
+           seqId: SPObservationID): Task[SeqexecFailure \/ Unit] = {
+    val t = EitherT(
+      for {
         odbSeq <- Task(odbProxy.read(seqId))
-      } yield odbSeq.flatMap(s => translator.sequence(systems, translatorSettings)(seqId.stringValue(), s))
+      } yield odbSeq.flatMap(
+        s => translator.sequence(systems, translatorSettings)
+                                (seqId.stringValue(), operator, observer, s)
+      )
     )
-    val u = t.flatMapF(x => q.enqueueOne(Event.load(seqId.stringValue(), x)).map(_.right))
+    val u = t.flatMapF(
+      x => q.enqueueOne(Event.load(seqId.stringValue(), x)).map(_.right)
+    )
     u.run
   }
 
