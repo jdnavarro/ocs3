@@ -1,5 +1,7 @@
 package edu.gemini.seqexec.web.client.components.sequence
 
+import diode.react.ModelProxy
+import edu.gemini.seqexec.web.client.model._
 import edu.gemini.seqexec.web.client.components.DropdownMenu
 import japgolly.scalajs.react.ReactComponentB
 import japgolly.scalajs.react.vdom.prefix_<^._
@@ -8,9 +10,12 @@ import japgolly.scalajs.react.vdom.prefix_<^._
   * Display to show headers per sequence
   */
 object HeadersSideBar {
-  val component = ReactComponentB[Unit]("HeadersSideBar")
+
+  case class Props(i: ClientStatus)
+
+  val component = ReactComponentB[Props]("HeadersSideBar")
     .stateless
-    .render(_ =>
+    .render_P (p =>
       <.div(
         ^.cls := "ui raised secondary segment",
         <.h4("Headers"),
@@ -21,7 +26,8 @@ object HeadersSideBar {
             <.label("Observer"),
             <.input(
               ^.`type` :="text",
-              ^.autoComplete :="off"
+              ^.autoComplete :="off",
+              ^.value := p.i.u.map(_.displayName).getOrElse("")
             )
           ),
           <.div(
@@ -41,5 +47,5 @@ object HeadersSideBar {
     )
     .build
 
-  def apply() = component()
+  def apply(u: ModelProxy[ClientStatus]) = component(Props(u()))
 }

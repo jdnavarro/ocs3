@@ -516,6 +516,7 @@ object SequenceTabsBody {
 object SequenceTabs {
   val logConnect: ReactConnectProxy[GlobalLog] = SeqexecCircuit.connect(_.globalLog)
   val sequencesDisplayConnect: ReactConnectProxy[(ClientStatus, SequencesOnDisplay)] = SeqexecCircuit.connect(SeqexecCircuit.statusAndSequences)
+  val userConnect = SeqexecCircuit.connect(SeqexecCircuit.status)
 
   case class Props(status: ClientStatus, sequences: SequencesOnDisplay)
 
@@ -530,7 +531,7 @@ object SequenceTabs {
             ^.cls := "row",
             <.div(
               ^.cls := "four wide column computer tablet only",
-              HeadersSideBar()
+              userConnect(HeadersSideBar.apply)
             ),
             sequencesDisplayConnect(SequenceTabsBody.apply)
           ),
