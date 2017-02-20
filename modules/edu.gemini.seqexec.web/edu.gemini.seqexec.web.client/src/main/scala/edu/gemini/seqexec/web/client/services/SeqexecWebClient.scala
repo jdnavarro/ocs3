@@ -36,6 +36,13 @@ object SeqexecWebClient extends ModelBooPicklers {
       case AjaxException(xhr) if xhr.status == HttpStatusCodes.NotFound  => SequencesQueue(Nil) // If not found, we'll consider it like an empty response
     }
 
+  def setObserver(name: String): Future[RegularCommand] = {
+    Ajax.post(
+      url = s"$baseUrl/setObserver/${name}",
+      responseType = "arraybuffer"
+    ).map(unpickle[RegularCommand])
+  }
+
   /**
     * Requests the backend to execute a sequence
     */

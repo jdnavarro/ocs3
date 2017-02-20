@@ -3,31 +3,42 @@ package edu.gemini.seqexec.web.client.components.sequence
 import diode.react.ModelProxy
 import edu.gemini.seqexec.web.client.model._
 import edu.gemini.seqexec.web.client.components.DropdownMenu
-import japgolly.scalajs.react.ReactComponentB
+import japgolly.scalajs.react._
 import japgolly.scalajs.react.vdom.prefix_<^._
+import org.scalajs.dom.ext.KeyCode
 
 /**
   * Display to show headers per sequence
   */
 object HeadersSideBar {
 
-  case class Props(i: ClientStatus)
+  case class Props(model: ModelProxy[ClientStatus])
 
-  val component = ReactComponentB[Props]("HeadersSideBar")
-    .stateless
-    .render_P (p =>
+  case class State(observer: String)
+
+  class Backend($: BackendScope[Props, State]) {
+
+    def onEnter(e: ReactKeyboardEventI): Callback = CallbackOption.keyCodeSwitch(e) {
+      case KeyCode.Enter => setObserver
+    }
+
+    def setObserver: Callback = $.props.zip($.state) >>= {
+      case (p, s) => p.model.dispatchCB(SetObserver(s.observer))
+    }
+
+    def render(p: Props, s: State)  =
       <.div(
         ^.cls := "ui raised secondary segment",
         <.h4("Headers"),
         <.div(
           ^.cls := "ui form",
           <.div(
-            ^.cls := "required field",
+
             <.label("Observer"),
             <.input(
               ^.`type` :="text",
               ^.autoComplete :="off",
-              ^.value := p.i.u.map(_.displayName).getOrElse("")
+              ^.value := s.observer
             )
           ),
           <.div(
@@ -44,8 +55,13 @@ object HeadersSideBar {
           DropdownMenu(DropdownMenu.Props("Sky Background", "Select", List("SB20", "SB50", "SB80", "Any")))
         )
       )
-    )
+  }
+
+  val component = ReactComponentB[Props]("HeadersSideBar")
+    .initialState(State(""))
+    .renderBackend[Backend]
     .build
 
-  def apply(u: ModelProxy[ClientStatus]) = component(Props(u()))
+
+  def apply(u: ModelProxy[ClientStatus]) = component(Props(u))
 }

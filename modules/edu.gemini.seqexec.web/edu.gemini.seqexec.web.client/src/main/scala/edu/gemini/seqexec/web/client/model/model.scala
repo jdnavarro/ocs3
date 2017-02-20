@@ -20,6 +20,8 @@ case class LoadSequence(criteria: String, potResult: Pot[SequencesQueue[Sequence
   }
 }
 
+case class SetObserver(name: String) extends Action
+
 // Actions to close and/open the search area
 case object OpenSearchArea extends Action
 case object CloseSearchArea extends Action

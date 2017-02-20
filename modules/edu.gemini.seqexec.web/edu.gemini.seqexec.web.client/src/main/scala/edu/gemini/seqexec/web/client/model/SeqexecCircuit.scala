@@ -50,6 +50,16 @@ class LoadHandler[M](modelRW: ModelRW[M, Pot[SeqexecCircuit.SearchResults]]) ext
   }
 }
 
+class ObserverHandler[M](modelRW: ModelRW[M, String]) extends ActionHandler(modelRW) {
+
+  implicit val runner = new RunAfterJS
+
+  override def handle: PartialFunction[Any, ActionResult[M]] = {
+    case SetObserver(name) => SeqexecWebClient.setObserver(name); noChange
+  }
+
+}
+
 /**
   * Handles sequence execution actions
   */
