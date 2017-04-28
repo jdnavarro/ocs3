@@ -61,6 +61,7 @@ class SequenceSpec extends FlatSpec {
       config,
       Set.empty,
       breakpoint,
+      false,
       List(
         List(action, action), // Execution
         List(action) // Execution
@@ -155,7 +156,7 @@ class SequenceSpec extends FlatSpec {
       case x::xs => (Execution(x.map(_.left)), xs)
     }
 
-    Step.Zipper(1, None, config, Set.empty, breakpoint = false, pending, focus, done, rollback)
+    Step.Zipper(1, None, config, Set.empty, breakpoint = false, false, pending, focus, done, rollback)
   }
   val stepz0: Step.Zipper   = simpleStep(Nil, Execution.empty, Nil)
   val stepza0: Step.Zipper  = simpleStep(List(List(action)), Execution.empty, Nil)

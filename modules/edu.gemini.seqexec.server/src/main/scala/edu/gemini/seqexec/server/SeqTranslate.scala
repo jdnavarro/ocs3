@@ -69,6 +69,7 @@ class SeqTranslate(site: Site, systems: Systems, settings: Settings) {
         config.toStepConfig,
         resources,
         false,
+        false,
         (if(i == 0) List(List(toAction(systems.odb.sequenceStart(obsId, "").map(_ => Result.Ignored))))
         else List())
         ++

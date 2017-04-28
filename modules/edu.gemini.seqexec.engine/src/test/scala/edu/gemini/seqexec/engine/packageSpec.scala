@@ -39,7 +39,7 @@ class packageSpec extends FlatSpec {
     */
   val observe: Action  = for {
     _ <- Task(Thread.sleep(200))
-} yield Result.OK(Result.Observed("DummyFileId"))
+  } yield Result.OK(Result.Observed("DummyFileId"))
 
   val faulty: Action  = for {
     _ <- Task(Thread.sleep(100))
@@ -64,6 +64,7 @@ class packageSpec extends FlatSpec {
                  config,
                  Set(Resource.TCS, Resource.F2),
                  breakpoint = false,
+                 skip = false,
                  List(
                    List(configureTcs, configureInst), // Execution
                    List(observe) // Execution
@@ -75,6 +76,7 @@ class packageSpec extends FlatSpec {
                  config,
                  Set(Resource.TCS, Resource.OI, Resource.F2),
                  breakpoint = false,
+                 skip = false,
                  List(
                    List(configureTcs, configureInst), // Execution
                    List(observe) // Execution
@@ -99,6 +101,7 @@ class packageSpec extends FlatSpec {
             config,
             Set(Resource.GMOS),
             breakpoint = false,
+            skip = false,
             List(
               List(configureTcs, configureInst), // Execution
               List(observe) // Execution
