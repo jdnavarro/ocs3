@@ -106,7 +106,7 @@ package object engine {
   /**
     * Loads a sequence
     */
-  def load(id: Sequence.Id, seq: Sequence[Action]): Handle[Unit] =
+  def load(id: Sequence.Id, seq: Sequence[Action \/ Result]): Handle[Unit] =
     modify(
       st => Engine.State(
         st.conditions,
