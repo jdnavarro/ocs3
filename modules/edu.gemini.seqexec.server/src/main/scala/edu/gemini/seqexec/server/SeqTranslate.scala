@@ -100,7 +100,9 @@ class SeqTranslate(site: Site, systems: Systems, settings: Settings) {
   private def extractStatus(config: Config): String =
     config.getItemValue(new ItemKey("observe:status")).toString
 
-    def sequence(settings: Settings)(obsId: SPObservationID, sequenceConfig: ConfigSequence): (List[SeqexecFailure], Option[Sequence[Action]]) = {
+  def sequence(settings: Settings)
+              (obsId: SPObservationID, sequenceConfig: ConfigSequence):
+      (List[SeqexecFailure], Option[Sequence[Action]]) = {
 
     val configs = sequenceConfig.getAllSteps.toList
 
