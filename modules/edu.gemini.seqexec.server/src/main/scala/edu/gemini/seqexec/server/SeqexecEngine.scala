@@ -124,7 +124,7 @@ class SeqexecEngine(settings: SeqexecEngine.Settings) {
             q.enqueueOne(Event.logMsg(SeqexecFailure.explain(err)))
           case (errs, Some(seq)) =>
             q.enqueueAll(errs.map(Event.logMsg _ compose SeqexecFailure.explain)) *>
-              q.enqueueOne(Event.load(seqId.stringValue(), seq.map(_.left)))
+              q.enqueueOne(Event.load(seqId.stringValue(), seq))
           case _ => Task(Unit)
         }
       )
