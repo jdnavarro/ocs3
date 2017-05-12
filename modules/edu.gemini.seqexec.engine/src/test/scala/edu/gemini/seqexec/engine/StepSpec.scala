@@ -110,8 +110,8 @@ class StepSpec extends FlatSpec {
                    Set.empty,
                    false,
                    List(
-                     List(configureTcs, configureInst, triggerPause(q)), // Execution
-                     List(observe) // Execution
+                     List(configureTcs, configureInst, triggerPause(q)).map(_.left), // Execution
+                     List(observe.left) // Execution
                    )
                  )
                )
@@ -230,7 +230,7 @@ class StepSpec extends FlatSpec {
                            Task(Result.OK(RetValDouble(1.0))
                            )
                          )
-                       )
+                       ).left
                      )
                    )
                  )

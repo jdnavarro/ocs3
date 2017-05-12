@@ -7,10 +7,9 @@ import org.scalatest.FlatSpec
 import edu.gemini.seqexec.model.Model.SequenceState.{Idle, Error}
 import edu.gemini.seqexec.model.Model.{Conditions, SequenceMetadata, SequenceState, StepConfig}
 
-import scalaz.syntax.apply._
-import scalaz.syntax.foldable._
+import scalaz._
+import Scalaz._
 import scalaz.Nondeterminism
-import scalaz.std.AllInstances._
 import scalaz.concurrent.Task
 import scalaz.stream.Cause
 import scalaz.stream.async
@@ -65,8 +64,8 @@ class packageSpec extends FlatSpec {
                  Set(Resource.TCS, Resource.F2),
                  breakpoint = false,
                  List(
-                   List(configureTcs, configureInst), // Execution
-                   List(observe) // Execution
+                   List(configureTcs.left, configureInst.left), // Execution
+                   List(observe.left) // Execution
                  )
                ),
                Step(
@@ -76,8 +75,8 @@ class packageSpec extends FlatSpec {
                  Set(Resource.TCS, Resource.OI, Resource.F2),
                  breakpoint = false,
                  List(
-                   List(configureTcs, configureInst), // Execution
-                   List(observe) // Execution
+                   List(configureTcs.left, configureInst.left), // Execution
+                   List(observe.left) // Execution
                  )
                )
              )
@@ -100,8 +99,8 @@ class packageSpec extends FlatSpec {
             Set(Resource.GMOS),
             breakpoint = false,
             List(
-              List(configureTcs, configureInst), // Execution
-              List(observe) // Execution
+              List(configureTcs.left, configureInst.left), // Execution
+              List(observe.left) // Execution
             )
           )
         )
@@ -129,7 +128,7 @@ class packageSpec extends FlatSpec {
   it should "be in Running status after starting" in {
     val q = async.boundedQueue[Event](10)
     val qs = (q.enqueueOne(start(seqId)) *> processE(q).take(1).runLast.eval(qs1)).unsafePerformSync.get._2
-    assert(qs.sequences(seqId).status === SequenceState.Running)
+    assert(qs.sequences(seqId).status == SequenceState.Running)
   }
 
   it should "be 0 pending executions after execution" in {
@@ -183,7 +182,7 @@ class packageSpec extends FlatSpec {
       Nondeterminism[Task].both(
         q.enqueueOne(start(seqId1)) *> q.enqueueOne(start(seqId2)),
         processE(q).take(6).runLast.eval(qs2)
-      ).unsafePerformSync._2.get._2.sequences(seqId2).status === SequenceState.Idle
+      ).unsafePerformSync._2.get._2.sequences(seqId2).status == SequenceState.Idle
     )
   }
 
@@ -194,7 +193,7 @@ class packageSpec extends FlatSpec {
       Nondeterminism[Task].both(
         q.enqueueOne(start(seqId1)) *> q.enqueueOne(start(seqId3)),
         processE(q).take(6).runLast.eval(qs3)
-      ).unsafePerformSync._2.get._2.sequences(seqId3).status === SequenceState.Running
+      ).unsafePerformSync._2.get._2.sequences(seqId3).status == SequenceState.Running
     )
   }
 }
